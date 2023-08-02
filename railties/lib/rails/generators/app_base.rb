@@ -13,6 +13,7 @@ module Rails
   module Generators
     class AppBase < Base # :nodoc:
       include Database
+      include TestingFramework
       include AppName
 
       NODE_LTS_VERSION = "18.15.0"
@@ -41,6 +42,9 @@ module Rails
         class_option :database,            type: :string, aliases: "-d", default: "sqlite3",
                                            enum: DATABASES,
                                            desc: "Preconfigure for selected database"
+
+        class_option :testing_framework,   type: :string, aliases: "-t", default: "minitest",
+                                           desc: "Preconfigure for selected testing framework"
 
         class_option :skip_git,            type: :boolean, aliases: "-G", default: nil,
                                            desc: "Skip git init, .gitignore and .gitattributes"
@@ -135,6 +139,7 @@ module Rails
           rails_gemfile_entry,
           asset_pipeline_gemfile_entry,
           database_gemfile_entry,
+          testing_framework_gemfile_entry,
           web_server_gemfile_entry,
           javascript_gemfile_entry,
           hotwire_gemfile_entry,
@@ -269,6 +274,14 @@ module Rails
         gem_name, gem_version = gem_for_database
         GemfileEntry.version gem_name, gem_version,
           "Use #{options[:database]} as the database for Active Record"
+      end
+
+      def testing_framework_gemfile_entry # :doc:
+        return if options[:skip_test]
+
+        gem_name, gem_version = gem_for_testing_framework
+        GemfileEntry.version gem_name, gem_version,
+          "Use #{options[:testing_framework]} as the testing framework"
       end
 
       def web_server_gemfile_entry # :doc:
