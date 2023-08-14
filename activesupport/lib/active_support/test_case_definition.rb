@@ -16,26 +16,26 @@ require "active_support/testing/parallelize_executor"
 require "concurrent/utility/processor_counter"
 
 module ActiveSupport
-  base = \
-    begin
-      require "minitest"
-      ::Minitest::Test
-    rescue LoadError
-      require "test/unit"
-      ::Test::Unit::TestCase
-    end
-  class TestCase < base
-    if superclass.name == "Minitest::Test"
-      Assertion = Minitest::Assertion
-      Assertions = Minitest::Assertions
-      UnexpectedError = Minitest::UnexpectedError
-    elsif superclass.name == "Test::Unit::TestCase"
-      Assertion = ::Test::Unit::AssertionFailedError
-      Assertions = ::Test::Unit::Assertions
-      UnexpectedError = Test::Unit::AssertionFailedError
+  module TestCaseDefinition
+    def self.included(base)
+      base.extend(ClassMethods)
+
+      ActiveSupport.run_load_hooks(:active_support_test_case, self)
     end
 
-    class << self
+    module ClassMethods
+      def inherited(subclass)
+        if subclass.superclass.name == "Minitest::Test"
+          subclass.const_set("Assertion", Minitest::Assertion)
+          subclass.const_set("Assertions", Minitest::Assertions)
+          subclass.const_set("UnexpectedError", Minitest::UnexpectedError)
+        elsif subclass.superclass.name == "Test::Unit::TestCase"
+          subclass.const_set("Assertion", ::Test::Unit::AssertionFailedError)
+          subclass.const_set("Assertions", ::Test::Unit::Assertions)
+          subclass.const_set("UnexpectedError", Test::Unit::AssertionFailedError)
+        end
+      end
+
       # Sets the order in which test cases are run.
       #
       #   ActiveSupport::TestCase.test_order = :random # => :random
@@ -331,8 +331,6 @@ module ActiveSupport
       #
       alias :assert_not_same :refute_same
     end
-
-    ActiveSupport.run_load_hooks(:active_support_test_case, self)
 
     def inspect # :nodoc:
       Object.instance_method(:to_s).bind_call(self)
