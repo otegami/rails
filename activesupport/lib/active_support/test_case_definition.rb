@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "minitest"
 require "active_support/testing/tagged_logging"
 require "active_support/testing/setup_and_teardown"
 require "active_support/testing/assertions"
@@ -17,10 +16,26 @@ require "active_support/testing/parallelize_executor"
 require "concurrent/utility/processor_counter"
 
 module ActiveSupport
-  class TestCase < ::Minitest::Test
-    Assertion = Minitest::Assertion
+  module TestCaseDefinition
+    def self.included(base)
+      base.extend(ClassMethods)
 
-    class << self
+      ActiveSupport.run_load_hooks(:active_support_test_case, self)
+    end
+
+    module ClassMethods
+      def inherited(subclass)
+        if subclass.superclass.name == "Minitest::Test"
+          subclass.const_set("Assertion", Minitest::Assertion)
+          subclass.const_set("Assertions", Minitest::Assertions)
+          subclass.const_set("UnexpectedError", Minitest::UnexpectedError)
+        elsif subclass.superclass.name == "Test::Unit::TestCase"
+          subclass.const_set("Assertion", ::Test::Unit::AssertionFailedError)
+          subclass.const_set("Assertions", ::Test::Unit::Assertions)
+          subclass.const_set("UnexpectedError", Test::Unit::AssertionFailedError)
+        end
+      end
+
       # Sets the order in which test cases are run.
       #
       #   ActiveSupport::TestCase.test_order = :random # => :random
@@ -81,7 +96,9 @@ module ActiveSupport
         workers = Concurrent.physical_processor_count if workers == :number_of_processors
         workers = ENV["PARALLEL_WORKERS"].to_i if ENV["PARALLEL_WORKERS"]
 
-        Minitest.parallel_executor = ActiveSupport::Testing::ParallelizeExecutor.new(size: workers, with: with, threshold: threshold)
+        if defined?(Minitest)
+          Minitest.parallel_executor = ActiveSupport::Testing::ParallelizeExecutor.new(size: workers, with: with, threshold: threshold)
+        end
       end
 
       # Set up hook for parallel testing. This can be used if you have multiple
@@ -140,6 +157,13 @@ module ActiveSupport
 
     alias_method :method_name, :name
 
+    include Module.new {
+      def before_setup
+      end
+      def after_teardown
+      end
+    }
+
     include ActiveSupport::Testing::TaggedLogging
     prepend ActiveSupport::Testing::SetupAndTeardown
     include ActiveSupport::Testing::Assertions
@@ -150,150 +174,163 @@ module ActiveSupport
     include ActiveSupport::Testing::FileFixtures
     extend ActiveSupport::Testing::Declarative
 
-    ##
-    # :method: assert_not_empty
-    #
-    # :call-seq:
-    #   assert_not_empty(obj, msg = nil)
-    #
-    # Alias for: refute_empty[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_empty]
+    if defined?(::Test::Unit)
+      method(:setup).super_method.call(before: :prepend)
+      def before_setup
+        super if method(__method__).super_method
+      end
 
-    #
-    alias :assert_not_empty :refute_empty
+      method(:teardown).super_method.call(after: :append)
+      def after_teardown
+        super if method(__method__).super_method
+      end
+    end
 
-    ##
-    # :method: assert_not_equal
-    #
-    # :call-seq:
-    #   assert_not_equal(exp, act, msg = nil)
-    #
-    # Alias for: refute_equal[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_equal]
+    # test/unit backwards compatibility methods
+    unless defined?(::Test::Unit)
+      ##
+      # :method: assert_not_empty
+      #
+      # :call-seq:
+      #   assert_not_empty(obj, msg = nil)
+      #
+      # Alias for: refute_empty[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_empty]
 
-    #
-    alias :assert_not_equal :refute_equal
+      #
+      alias :assert_not_empty :refute_empty
 
-    ##
-    # :method: assert_not_in_delta
-    #
-    # :call-seq:
-    #   assert_not_in_delta(exp, act, delta = 0.001, msg = nil)
-    #
-    # Alias for: refute_in_delta[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_in_delta]
+      ##
+      # :method: assert_not_equal
+      #
+      # :call-seq:
+      #   assert_not_equal(exp, act, msg = nil)
+      #
+      # Alias for: refute_equal[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_equal]
 
-    #
-    alias :assert_not_in_delta :refute_in_delta
+      #
+      alias :assert_not_equal :refute_equal
 
-    ##
-    # :method: assert_not_in_epsilon
-    #
-    # :call-seq:
-    #   assert_not_in_epsilon(a, b, epsilon = 0.001, msg = nil)
-    #
-    # Alias for: refute_in_epsilon[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_in_epsilon]
+      ##
+      # :method: assert_not_in_delta
+      #
+      # :call-seq:
+      #   assert_not_in_delta(exp, act, delta = 0.001, msg = nil)
+      #
+      # Alias for: refute_in_delta[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_in_delta]
 
-    #
-    alias :assert_not_in_epsilon :refute_in_epsilon
+      #
+      alias :assert_not_in_delta :refute_in_delta
 
-    ##
-    # :method: assert_not_includes
-    #
-    # :call-seq:
-    #   assert_not_includes(collection, obj, msg = nil)
-    #
-    # Alias for: refute_includes[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_includes]
+      ##
+      # :method: assert_not_in_epsilon
+      #
+      # :call-seq:
+      #   assert_not_in_epsilon(a, b, epsilon = 0.001, msg = nil)
+      #
+      # Alias for: refute_in_epsilon[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_in_epsilon]
 
-    #
-    alias :assert_not_includes :refute_includes
+      #
+      alias :assert_not_in_epsilon :refute_in_epsilon
 
-    ##
-    # :method: assert_not_instance_of
-    #
-    # :call-seq:
-    #   assert_not_instance_of(cls, obj, msg = nil)
-    #
-    # Alias for: refute_instance_of[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_instance_of]
+      ##
+      # :method: assert_not_includes
+      #
+      # :call-seq:
+      #   assert_not_includes(collection, obj, msg = nil)
+      #
+      # Alias for: refute_includes[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_includes]
 
-    #
-    alias :assert_not_instance_of :refute_instance_of
+      #
+      alias :assert_not_includes :refute_includes
 
-    ##
-    # :method: assert_not_kind_of
-    #
-    # :call-seq:
-    #   assert_not_kind_of(cls, obj, msg = nil)
-    #
-    # Alias for: refute_kind_of[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_kind_of]
+      ##
+      # :method: assert_not_instance_of
+      #
+      # :call-seq:
+      #   assert_not_instance_of(cls, obj, msg = nil)
+      #
+      # Alias for: refute_instance_of[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_instance_of]
 
-    #
-    alias :assert_not_kind_of :refute_kind_of
+      #
+      alias :assert_not_instance_of :refute_instance_of
 
-    ##
-    # :method: assert_no_match
-    #
-    # :call-seq:
-    #   assert_no_match(matcher, obj, msg = nil)
-    #
-    # Alias for: refute_match[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_match]
+      ##
+      # :method: assert_not_kind_of
+      #
+      # :call-seq:
+      #   assert_not_kind_of(cls, obj, msg = nil)
+      #
+      # Alias for: refute_kind_of[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_kind_of]
 
-    #
-    alias :assert_no_match :refute_match
+      #
+      alias :assert_not_kind_of :refute_kind_of
 
-    ##
-    # :method: assert_not_nil
-    #
-    # :call-seq:
-    #   assert_not_nil(obj, msg = nil)
-    #
-    # Alias for: refute_nil[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_nil]
+      ##
+      # :method: assert_no_match
+      #
+      # :call-seq:
+      #   assert_no_match(matcher, obj, msg = nil)
+      #
+      # Alias for: refute_match[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_match]
 
-    #
-    alias :assert_not_nil :refute_nil
+      #
+      alias :assert_no_match :refute_match
 
-    ##
-    # :method: assert_not_operator
-    #
-    # :call-seq:
-    #   assert_not_operator(o1, op, o2 = UNDEFINED, msg = nil)
-    #
-    # Alias for: refute_operator[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_operator]
+      ##
+      # :method: assert_not_nil
+      #
+      # :call-seq:
+      #   assert_not_nil(obj, msg = nil)
+      #
+      # Alias for: refute_nil[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_nil]
 
-    #
-    alias :assert_not_operator :refute_operator
+      #
+      alias :assert_not_nil :refute_nil
 
-    ##
-    # :method: assert_not_predicate
-    #
-    # :call-seq:
-    #   assert_not_predicate(o1, op, msg = nil)
-    #
-    # Alias for: refute_predicate[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_predicate]
+      ##
+      # :method: assert_not_operator
+      #
+      # :call-seq:
+      #   assert_not_operator(o1, op, o2 = UNDEFINED, msg = nil)
+      #
+      # Alias for: refute_operator[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_operator]
 
-    #
-    alias :assert_not_predicate :refute_predicate
+      #
+      alias :assert_not_operator :refute_operator
 
-    ##
-    # :method: assert_not_respond_to
-    #
-    # :call-seq:
-    #   assert_not_respond_to(obj, meth, msg = nil)
-    #
-    # Alias for: refute_respond_to[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_respond_to]
+      ##
+      # :method: assert_not_predicate
+      #
+      # :call-seq:
+      #   assert_not_predicate(o1, op, msg = nil)
+      #
+      # Alias for: refute_predicate[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_predicate]
 
-    #
-    alias :assert_not_respond_to :refute_respond_to
+      #
+      alias :assert_not_predicate :refute_predicate
 
-    ##
-    # :method: assert_not_same
-    #
-    # :call-seq:
-    #   assert_not_same(exp, act, msg = nil)
-    #
-    # Alias for: refute_same[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_same]
+      ##
+      # :method: assert_not_respond_to
+      #
+      # :call-seq:
+      #   assert_not_respond_to(obj, meth, msg = nil)
+      #
+      # Alias for: refute_respond_to[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_respond_to]
 
-    #
-    alias :assert_not_same :refute_same
+      #
+      alias :assert_not_respond_to :refute_respond_to
 
-    ActiveSupport.run_load_hooks(:active_support_test_case, self)
+      ##
+      # :method: assert_not_same
+      #
+      # :call-seq:
+      #   assert_not_same(exp, act, msg = nil)
+      #
+      # Alias for: refute_same[https://docs.seattlerb.org/minitest/Minitest/Assertions.html#method-i-refute_same]
+
+      #
+      alias :assert_not_same :refute_same
+    end
 
     def inspect # :nodoc:
       Object.instance_method(:to_s).bind_call(self)
