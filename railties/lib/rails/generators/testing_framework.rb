@@ -14,7 +14,7 @@ module Rails
       def gem_for_testing_framework(testing_framework = options[:testing_framework])
         case testing_framework
         when "minitest"       then ["minitest", [">= 5.15.0"]]
-        when "test-unit"      then ["test-unit", ["~> 2.4"]]
+        when "test-unit"      then ["test-unit", [">= 3.6.1"]]
         else [testing_framework, nil]
         end
       end
