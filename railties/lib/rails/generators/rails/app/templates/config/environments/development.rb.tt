@@ -88,5 +88,9 @@ Rails.application.configure do
 
   # TODO Add this configuration during generating phase
   # - Should I add this configuration to config/test.rb ?
-  config.active_support.testing_framework = option[:testing_framework]
+  <%- if minitesst? -%>
+  config.active_support.testing_framework = :minitest
+  <%- else -%>
+  config.active_support.testing_framework = :test_unit
+  <%- end -%>
 end

@@ -13,6 +13,16 @@ module ActiveSupport
       app.deprecators[:active_support] = ActiveSupport.deprecator
     end
 
+    initializer "active_suppor.testing_framework" do |app|
+      base = if Rails.configuration.active_support.testing_framework == :minitest
+        require "minitest"
+        ::Minitest::Test
+      else
+        require "test/unit"
+        ::Test::Unit::TestCase
+      end
+    end
+
     initializer "active_support.isolation_level" do |app|
       config.after_initialize do
         if level = app.config.active_support.delete(:isolation_level)

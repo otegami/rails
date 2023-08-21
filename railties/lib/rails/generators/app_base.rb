@@ -381,6 +381,9 @@ module Rails
         skip_asset_pipeline? || options[:asset_pipeline] != "propshaft"
       end
 
+      def minitesst?
+        options[:testing_framework] == "minitest"
+      end
 
       class GemfileEntry < Struct.new(:name, :version, :comment, :options, :commented_out)
         def initialize(name, version, comment, options = {}, commented_out = false)
