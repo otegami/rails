@@ -13,6 +13,7 @@ module Rails
   module Generators
     class AppBase < Base # :nodoc:
       include Database
+      include TestingFramework
       include AppName
 
       NODE_LTS_VERSION = "18.15.0"
@@ -35,6 +36,9 @@ module Rails
 
         class_option :database,            type: :string, aliases: "-d", default: "sqlite3",
                                            desc: "Preconfigure for selected database (options: #{DATABASES.join('/')})"
+
+        class_option :testing_framework,   type: :string, aliases: "-t", default: "minitest",
+                                           desc: "Preconfigure for selected testing framework"
 
         class_option :skip_git,            type: :boolean, aliases: "-G", default: nil,
                                            desc: "Skip git init, .gitignore and .gitattributes"
@@ -128,6 +132,7 @@ module Rails
           rails_gemfile_entry,
           asset_pipeline_gemfile_entry,
           database_gemfile_entry,
+          testing_framework_gemfile_entry,
           web_server_gemfile_entry,
           javascript_gemfile_entry,
           hotwire_gemfile_entry,
@@ -264,6 +269,14 @@ module Rails
           "Use #{options[:database]} as the database for Active Record"
       end
 
+      def testing_framework_gemfile_entry # :doc:
+        return if options[:skip_test]
+
+        gem_name, gem_version = gem_for_testing_framework
+        GemfileEntry.version gem_name, gem_version,
+          "Use #{options[:testing_framework]} as the testing framework"
+      end
+
       def web_server_gemfile_entry # :doc:
         GemfileEntry.new "puma", ">= 5.0", "Use the Puma web server [https://github.com/puma/puma]"
       end
@@ -368,6 +381,9 @@ module Rails
         skip_asset_pipeline? || options[:asset_pipeline] != "propshaft"
       end
 
+      def minitesst?
+        options[:testing_framework] == "minitest"
+      end
 
       class GemfileEntry < Struct.new(:name, :version, :comment, :options, :commented_out)
         def initialize(name, version, comment, options = {}, commented_out = false)
