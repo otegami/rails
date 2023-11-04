@@ -14,15 +14,16 @@ module Rails
   module Generators
     include Rails::Command::Behavior
 
-    autoload :Actions,         "rails/generators/actions"
-    autoload :ActiveModel,     "rails/generators/active_model"
-    autoload :Base,            "rails/generators/base"
-    autoload :Migration,       "rails/generators/migration"
-    autoload :Database,        "rails/generators/database"
-    autoload :AppName,         "rails/generators/app_name"
-    autoload :NamedBase,       "rails/generators/named_base"
-    autoload :ResourceHelpers, "rails/generators/resource_helpers"
-    autoload :TestCase,        "rails/generators/test_case"
+    autoload :Actions,          "rails/generators/actions"
+    autoload :ActiveModel,      "rails/generators/active_model"
+    autoload :Base,             "rails/generators/base"
+    autoload :Migration,        "rails/generators/migration"
+    autoload :Database,         "rails/generators/database"
+    autoload :TestingFramework, "rails/generators/testing_framework"
+    autoload :AppName,          "rails/generators/app_name"
+    autoload :NamedBase,        "rails/generators/named_base"
+    autoload :ResourceHelpers,  "rails/generators/resource_helpers"
+    autoload :TestCase,         "rails/generators/test_case"
 
     mattr_accessor :namespace
 
